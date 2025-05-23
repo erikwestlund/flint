@@ -12,7 +12,8 @@ class ImportEmailsCommand extends Command
     protected $signature = 'emails:import 
                             {--file= : Import a specific file}
                             {--files=* : Import specific files}
-                            {--all : Import all files}';
+                            {--all : Import all files}
+                            {--range= : Import files from a range}';
 
     protected $description = 'Import emails from JSON files';
 
@@ -22,61 +23,33 @@ class ImportEmailsCommand extends Command
 
         if ($this->option('file')) {
             $this->info("Importing single file: {$this->option('file')}");
-            try {
-                $job = new ImportEmails($directory, [$this->option('file')]);
-                $job->handle();
-                $this->info("✓ Successfully processed {$this->option('file')}");
-            } catch (\Exception $e) {
-                $this->error("✗ Failed to process {$this->option('file')}");
-                $this->error("Error: " . $e->getMessage());
-                $this->error("Stack trace: " . $e->getTraceAsString());
-                Log::error("Email import failed", [
-                    'file' => $this->option('file'),
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
+            ImportEmails::dispatch($directory, [$this->option('file')]);
+            $this->info("Job dispatched for {$this->option('file')}");
         } elseif ($this->option('files')) {
             $files = $this->option('files');
             $this->info("Importing specific files: " . implode(', ', $files));
-            foreach ($files as $file) {
-                try {
-                    $job = new ImportEmails($directory, [$file]);
-                    $job->handle();
-                    $this->info("✓ Successfully processed {$file}");
-                } catch (\Exception $e) {
-                    $this->error("✗ Failed to process {$file}");
-                    $this->error("Error: " . $e->getMessage());
-                    $this->error("Stack trace: " . $e->getTraceAsString());
-                    Log::error("Email import failed", [
-                        'file' => $file,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                }
-            }
+            ImportEmails::dispatch($directory, $files);
+            $this->info("Jobs dispatched for specified files");
         } elseif ($this->option('all')) {
             $this->info("Importing all files from directory: {$directory}");
             $files = File::files($directory);
             $jsonFiles = array_filter($files, fn($file) => $file->getExtension() === 'json');
-            foreach ($jsonFiles as $file) {
-                try {
-                    $job = new ImportEmails($directory, [$file->getFilename()]);
-                    $job->handle();
-                    $this->info("✓ Successfully processed {$file->getFilename()}");
-                } catch (\Exception $e) {
-                    $this->error("✗ Failed to process {$file->getFilename()}");
-                    $this->error("Error: " . $e->getMessage());
-                    $this->error("Stack trace: " . $e->getTraceAsString());
-                    Log::error("Email import failed", [
-                        'file' => $file->getFilename(),
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                }
+            $fileNames = array_map(fn($file) => $file->getFilename(), $jsonFiles);
+            ImportEmails::dispatch($directory, $fileNames);
+            $this->info("Jobs dispatched for all files");
+        } elseif ($this->option('range')) {
+            $range = explode('-', $this->option('range'));
+            $start = (int)$range[0];
+            $end = (int)$range[1];
+            $files = [];
+            for ($i = $start; $i <= $end; $i++) {
+                $files[] = sprintf('%05d.json', $i);
             }
+            $this->info("Importing files from range: " . implode(', ', $files));
+            ImportEmails::dispatch($directory, $files);
+            $this->info("Jobs dispatched for specified range");
         } else {
-            $this->error('Please specify either --file, --files, or --all option');
+            $this->error('Please specify either --file, --files, --all, or --range option');
             return 1;
         }
 

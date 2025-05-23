@@ -8,25 +8,25 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Create employees table
-        Schema::create('employees', function (Blueprint $table) {
+        // Create email_participants table
+        Schema::create('email_participants', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->nullable();
             $table->boolean('is_valid_email')->default(false);
             $table->string('department')->nullable();
-            $table->string('organization')->nullable();
             $table->timestamps();
         });
 
         // Create emails table
         Schema::create('emails', function (Blueprint $table) {
             $table->id();
+            $table->integer('seq_id')->nullable();
             $table->string('subject');
-            $table->text('text_full');
-            $table->text('text_body');
+            $table->longText('text_full');
+            $table->longText('text_body');
             $table->text('text_header');
-            $table->foreignId('sender_id')->constrained('employees')->onDelete('cascade');
+            $table->foreignId('sender_id')->constrained('email_participants')->onDelete('cascade');
             $table->timestamp('timestamp');
             $table->boolean('has_attachments')->default(false);
             $table->string('department')->nullable();
@@ -36,7 +36,8 @@ return new class extends Migration
             $table->boolean('is_canonical')->default(false);
             $table->string('email_n_in_bm')->nullable();
             $table->string('source_file')->nullable();
-            $table->string('file_number')->nullable();
+            $table->json('sender_discordance')->nullable()->comment('Tracks discrepancies between JSON sender and extracted sender. Structure: {json_sender: {name, email}, extracted_sender: {name, email}, used_sender: "json"|"extracted"}');
+            $table->json('recipient_discordance')->nullable()->comment('Tracks discrepancies between JSON recipients and extracted recipients. Structure: {json_recipients: [], extracted_recipients: [], matches: [], mismatches: []}');
             $table->timestamps();
         });
 
@@ -44,7 +45,7 @@ return new class extends Migration
         Schema::create('email_recipients', function (Blueprint $table) {
             $table->id();
             $table->foreignId('email_id')->constrained('emails')->onDelete('cascade');
-            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->foreignId('employee_id')->constrained('email_participants')->onDelete('cascade');
             $table->boolean('is_cc')->default(false);
             $table->timestamps();
         });
@@ -54,21 +55,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('email_id')->constrained('emails')->onDelete('cascade');
             $table->string('filename');
-            $table->string('file_type')->nullable();
-            $table->integer('file_size')->nullable();
-            $table->boolean('exists')->default(false);
-            $table->string('path')->nullable();
             $table->timestamps();
         });
 
         // Create email_duplicates table
         Schema::create('email_duplicates', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('canonical_email_id')->constrained('emails')->onDelete('cascade');
-            $table->foreignId('duplicate_email_id')->constrained('emails')->onDelete('cascade');
+            $table->foreignId('email_id')->constrained('emails')->onDelete('cascade');
+            $table->string('duplicate_email_seq_id');
             $table->timestamps();
 
-            $table->unique(['canonical_email_id', 'duplicate_email_id']);
+            $table->unique(['email_id', 'duplicate_email_seq_id']);
         });
     }
 
@@ -78,6 +75,6 @@ return new class extends Migration
         Schema::dropIfExists('email_attachments');
         Schema::dropIfExists('email_recipients');
         Schema::dropIfExists('emails');
-        Schema::dropIfExists('employees');
+        Schema::dropIfExists('email_participants');
     }
 }; 

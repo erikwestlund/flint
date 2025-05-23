@@ -26,10 +26,10 @@ class EmailRecipient extends Model
     }
 
     /**
-     * Get the employee that is the recipient
+     * Get the employee who is a recipient
      */
-    public function employee(): BelongsTo
+    public function employee()
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(EmailParticipant::class);
     }
 } 

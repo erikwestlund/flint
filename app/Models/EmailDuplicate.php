@@ -5,15 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EmailAttachment extends Model
+class EmailDuplicate extends Model
 {
     protected $fillable = [
         'email_id',
-        'filename'
+        'duplicate_email_seq_id'
     ];
 
     /**
-     * Get the email that this attachment belongs to
+     * Get the email that this duplicate belongs to
      */
     public function email(): BelongsTo
     {

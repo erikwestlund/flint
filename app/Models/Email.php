@@ -9,36 +9,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Email extends Model
 {
-    protected $fillable = [
-        'subject',
-        'text_full',
-        'text_body',
-        'text_header',
-        'sender_id',
-        'timestamp',
-        'has_attachments',
-        'department',
-        'pdf',
-        'bookmark',
-        'bookmark_title',
-        'is_canonical',
-        'email_n_in_bm',
-        'source_file',
-        'file_number'
-    ];
+    protected $guarded = ['id'];
 
     protected $casts = [
         'timestamp' => 'datetime',
         'has_attachments' => 'boolean',
-        'is_canonical' => 'boolean'
+        'is_canonical' => 'boolean',
+        'attachments' => 'array',
+        'duplicates' => 'array'
     ];
 
     /**
      * Get the sender of the email
      */
-    public function sender(): BelongsTo
+    public function sender()
     {
-        return $this->belongsTo(Employee::class, 'sender_id');
+        return $this->belongsTo(EmailParticipant::class, 'sender_id');
     }
 
     /**
@@ -68,10 +54,9 @@ class Email extends Model
     /**
      * Get the duplicates of this email
      */
-    public function duplicates(): BelongsToMany
+    public function duplicates(): HasMany
     {
-        return $this->belongsToMany(Email::class, 'email_duplicates', 'canonical_email_id', 'duplicate_email_id')
-            ->withTimestamps();
+        return $this->hasMany(EmailDuplicate::class);
     }
 
     /**
@@ -99,5 +84,15 @@ class Email extends Model
     {
         $this->update(['is_canonical' => false]);
         $canonical->duplicates()->attach($this->id);
+    }
+
+    /**
+     * Add a duplicate to this email
+     */
+    public function addDuplicate(string $duplicateSeqId): void
+    {
+        $this->duplicates()->create([
+            'duplicate_email_seq_id' => $duplicateSeqId
+        ]);
     }
 } 
